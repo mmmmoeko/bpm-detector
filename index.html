@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BPM Detector</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>BPM Detector</h1>
+      <p class="subtitle">MP3/WAV ファイルをドロップしてBPMを検出</p>
+    </header>
+
+    <div id="dropZone" class="drop-zone">
+      <div class="drop-zone-content">
+        <svg class="drop-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="17 8 12 3 7 8"/>
+          <line x1="12" y1="3" x2="12" y2="15"/>
+        </svg>
+        <p>ここにファイルをドラッグ&ドロップ</p>
+        <p class="drop-hint">または クリックしてファイルを選択</p>
+        <p class="supported-formats">対応形式: MP3, WAV</p>
+      </div>
+      <input type="file" id="fileInput" accept=".mp3,.wav,audio/mpeg,audio/wav" hidden>
+    </div>
+
+    <div id="fileInfo" class="file-info hidden">
+      <span id="fileName" class="file-name"></span>
+      <button id="removeFile" class="remove-btn" title="ファイルを削除">&times;</button>
+    </div>
+
+    <div id="progress" class="progress hidden">
+      <div class="progress-bar">
+        <div id="progressFill" class="progress-fill"></div>
+      </div>
+      <p id="progressText" class="progress-text">解析中...</p>
+    </div>
+
+    <div id="result" class="result hidden">
+      <div class="bpm-display">
+        <span class="bpm-label">BPM</span>
+        <span id="bpmValue" class="bpm-value">---</span>
+      </div>
+      <div id="confidence" class="confidence"></div>
+    </div>
+
+    <div id="visualizer" class="visualizer hidden">
+      <h2>波形</h2>
+      <canvas id="waveformCanvas"></canvas>
+      <h2>オンセット検出</h2>
+      <canvas id="onsetCanvas"></canvas>
+    </div>
+
+    <div id="player" class="player hidden">
+      <button id="playBtn" class="play-btn">&#9654; 再生</button>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

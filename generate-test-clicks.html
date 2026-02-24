@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BPM Test Click Generator</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #0f1117; color: #e4e6ed;
+      min-height: 100vh; display: flex; justify-content: center; padding: 40px 20px;
+    }
+    .container { width: 100%; max-width: 600px; }
+    h1 { text-align: center; margin-bottom: 8px; }
+    .subtitle { text-align: center; color: #8b8fa3; margin-bottom: 32px; font-size: 0.9rem; }
+    .preset-grid {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 12px;
+      margin-bottom: 32px;
+    }
+    .preset-btn {
+      background: #1a1d27; border: 1px solid #2e3345; border-radius: 8px;
+      color: #e4e6ed; padding: 16px 12px; cursor: pointer; text-align: center;
+      transition: all 0.2s; font-size: 0.95rem;
+    }
+    .preset-btn:hover { border-color: #6c5ce7; background: #242836; }
+    .preset-btn .bpm-num { font-size: 1.5rem; font-weight: 700; color: #a29bfe; display: block; }
+    .preset-btn .bpm-label { font-size: 0.75rem; color: #8b8fa3; }
+    .custom {
+      background: #1a1d27; border: 1px solid #2e3345; border-radius: 12px;
+      padding: 24px; margin-bottom: 24px;
+    }
+    .custom h2 { font-size: 1rem; color: #8b8fa3; margin-bottom: 16px; }
+    .form-row { display: flex; gap: 12px; align-items: end; margin-bottom: 12px; }
+    .form-group { flex: 1; }
+    .form-group label { display: block; font-size: 0.8rem; color: #8b8fa3; margin-bottom: 4px; }
+    .form-group input, .form-group select {
+      width: 100%; background: #0f1117; border: 1px solid #2e3345; border-radius: 6px;
+      color: #e4e6ed; padding: 8px 12px; font-size: 0.9rem;
+    }
+    .generate-btn {
+      background: #6c5ce7; color: #fff; border: none; padding: 10px 24px;
+      border-radius: 8px; font-size: 0.95rem; font-weight: 600; cursor: pointer;
+      transition: background 0.2s; width: 100%;
+    }
+    .generate-btn:hover { background: #a29bfe; }
+    .generate-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .log { background: #1a1d27; border-radius: 8px; padding: 16px; margin-top: 16px; max-height: 200px; overflow-y: auto; }
+    .log p { font-size: 0.8rem; color: #8b8fa3; margin-bottom: 4px; font-family: monospace; }
+    .log p.success { color: #00cec9; }
+    .log p.error { color: #ff7675; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Test Click Generator</h1>
+    <p class="subtitle">既知のBPMでクリック音WAVを生成してダウンロード</p>
+
+    <div class="preset-grid">
+      <button class="preset-btn" onclick="generate(60)">
+        <span class="bpm-num">60</span><span class="bpm-label">BPM</span>
+      </button>
+      <button class="preset-btn" onclick="generate(80)">
+        <span class="bpm-num">80</span><span class="bpm-label">BPM</span>
+      </button>
+      <button class="preset-btn" onclick="generate(100)">
+        <span class="bpm-num">100</span><span class="bpm-label">BPM</span>
+      </button>
+      <button class="preset-btn" onclick="generate(120)">
+        <span class="bpm-num">120</span><span class="bpm-label">BPM</span>
+      </button>
+      <button class="preset-btn" onclick="generate(128)">
+        <span class="bpm-num">128</span><span class="bpm-label">BPM</span>
+      </button>
+      <button class="preset-btn" onclick="generate(140)">
+        <span class="bpm-num">140</span><span class="bpm-label">BPM</span>
+      </button>
+      <button class="preset-btn" onclick="generate(150)">
+        <span class="bpm-num">150</span><span class="bpm-label">BPM</span>
+      </button>
+      <button class="preset-btn" onclick="generate(170)">
+        <span class="bpm-num">170</span><span class="bpm-label">BPM</span>
+      </button>
+    </div>
+
+    <div class="custom">
+      <h2>カスタム設定</h2>
+      <div class="form-row">
+        <div class="form-group">
+          <label>BPM</label>
+          <input type="number" id="customBpm" value="140" min="30" max="300" step="0.1">
+        </div>
+        <div class="form-group">
+          <label>長さ (秒)</label>
+          <input type="number" id="duration" value="15" min="3" max="60">
+        </div>
+        <div class="form-group">
+          <label>音色</label>
+          <select id="clickType">
+            <option value="click">クリック (短い)</option>
+            <option value="kick">キック風</option>
+            <option value="sine">サイン波</option>
+          </select>
+        </div>
+      </div>
+      <button class="generate-btn" id="genBtn" onclick="generateCustom()">生成 & ダウンロード</button>
+    </div>
+
+    <div class="log" id="log"></div>
+  </div>
+
+<script>
+  const SAMPLE_RATE = 44100;
+
+  function log(msg, type = "") {
+    const el = document.getElementById("log");
+    const p = document.createElement("p");
+    p.className = type;
+    p.textContent = msg;
+    el.prepend(p);
+  }
+
+  function generate(bpm) {
+    const duration = parseFloat(document.getElementById("duration").value) || 15;
+    const clickType = document.getElementById("clickType").value;
+    generateAndDownload(bpm, duration, clickType);
+  }
+
+  function generateCustom() {
+    const bpm = parseFloat(document.getElementById("customBpm").value);
+    const duration = parseFloat(document.getElementById("duration").value) || 15;
+    const clickType = document.getElementById("clickType").value;
+    if (bpm < 30 || bpm > 300) {
+      log("BPMは30〜300の範囲で指定してください", "error");
+      return;
+    }
+    generateAndDownload(bpm, duration, clickType);
+  }
+
+  function generateAndDownload(bpm, durationSec, clickType) {
+    log(`生成中: ${bpm} BPM, ${durationSec}秒, 音色=${clickType}...`);
+
+    const totalSamples = Math.floor(SAMPLE_RATE * durationSec);
+    const intervalSamples = Math.round((60 / bpm) * SAMPLE_RATE);
+    const buffer = new Float32Array(totalSamples);
+
+    // Generate click at each beat position
+    const numBeats = Math.floor(durationSec * bpm / 60);
+    for (let beat = 0; beat < numBeats; beat++) {
+      const pos = Math.round(beat * intervalSamples);
+      writeClick(buffer, pos, clickType);
+    }
+
+    // Encode as WAV and download
+    const wavBlob = encodeWAV(buffer, SAMPLE_RATE);
+    const url = URL.createObjectURL(wavBlob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `click_${bpm}bpm_${durationSec}s_${clickType}.wav`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    log(`完了: click_${bpm}bpm_${durationSec}s_${clickType}.wav (${numBeats} beats)`, "success");
+  }
+
+  function writeClick(buffer, startPos, type) {
+    if (type === "click") {
+      // Short noise burst (3ms) with exponential decay
+      const clickLen = Math.floor(SAMPLE_RATE * 0.003);
+      for (let i = 0; i < clickLen && startPos + i < buffer.length; i++) {
+        const env = Math.exp(-i / (clickLen * 0.2));
+        buffer[startPos + i] += (Math.random() * 2 - 1) * 0.8 * env;
+      }
+    } else if (type === "kick") {
+      // Sine sweep from 150Hz to 50Hz with decay (30ms)
+      const kickLen = Math.floor(SAMPLE_RATE * 0.03);
+      let phase = 0;
+      for (let i = 0; i < kickLen && startPos + i < buffer.length; i++) {
+        const t = i / SAMPLE_RATE;
+        const freq = 150 * Math.exp(-t * 40) + 50;
+        phase += (2 * Math.PI * freq) / SAMPLE_RATE;
+        const env = Math.exp(-i / (kickLen * 0.3));
+        buffer[startPos + i] += Math.sin(phase) * 0.9 * env;
+      }
+    } else if (type === "sine") {
+      // 1000Hz sine burst (5ms)
+      const sineLen = Math.floor(SAMPLE_RATE * 0.005);
+      for (let i = 0; i < sineLen && startPos + i < buffer.length; i++) {
+        const env = Math.exp(-i / (sineLen * 0.3));
+        buffer[startPos + i] += Math.sin(2 * Math.PI * 1000 * i / SAMPLE_RATE) * 0.8 * env;
+      }
+    }
+  }
+
+  function encodeWAV(samples, sampleRate) {
+    // 16-bit mono WAV
+    const numSamples = samples.length;
+    const byteRate = sampleRate * 2; // 16-bit = 2 bytes per sample
+    const dataSize = numSamples * 2;
+    const bufferSize = 44 + dataSize;
+    const arrayBuffer = new ArrayBuffer(bufferSize);
+    const view = new DataView(arrayBuffer);
+
+    // RIFF header
+    writeString(view, 0, "RIFF");
+    view.setUint32(4, bufferSize - 8, true);
+    writeString(view, 8, "WAVE");
+
+    // fmt chunk
+    writeString(view, 12, "fmt ");
+    view.setUint32(16, 16, true);       // chunk size
+    view.setUint16(20, 1, true);        // PCM
+    view.setUint16(22, 1, true);        // mono
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, byteRate, true);
+    view.setUint16(32, 2, true);        // block align
+    view.setUint16(34, 16, true);       // bits per sample
+
+    // data chunk
+    writeString(view, 36, "data");
+    view.setUint32(40, dataSize, true);
+
+    // Write samples as 16-bit int
+    let offset = 44;
+    for (let i = 0; i < numSamples; i++) {
+      const s = Math.max(-1, Math.min(1, samples[i]));
+      const val = s < 0 ? s * 0x8000 : s * 0x7FFF;
+      view.setInt16(offset, val, true);
+      offset += 2;
+    }
+
+    return new Blob([arrayBuffer], { type: "audio/wav" });
+  }
+
+  function writeString(view, offset, str) {
+    for (let i = 0; i < str.length; i++) {
+      view.setUint8(offset + i, str.charCodeAt(i));
+    }
+  }
+</script>
+</body>
+</html>
