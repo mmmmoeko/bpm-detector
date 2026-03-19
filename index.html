@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BPM Checker</title>
+  <meta property="og:title" content="BPM Checker">
+  <meta property="og:description" content="MP3/WAVファイルからBPMを自動検出するWebアプリ">
+  <meta property="og:image" content="https://mmmmoeko.github.io/bpm-detector/ogp.png">
+  <meta property="og:url" content="https://mmmmoeko.github.io/bpm-detector/">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&family=Noto+Sans+JP:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css?v=2">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>BPM Checker</h1>
+      <p class="subtitle">MP3/WAV ファイルをドロップしてBPMを検出</p>
+    </header>
+
+    <div id="dropZone" class="drop-zone">
+      <div class="drop-zone-content">
+        <svg class="drop-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 18V5l12-2v13"/>
+          <circle cx="6" cy="18" r="3"/>
+          <circle cx="18" cy="16" r="3"/>
+        </svg>
+        <p>ここにファイルをドラッグ&ドロップ</p>
+        <p class="drop-hint">または クリックしてファイルを選択</p>
+        <p class="supported-formats">対応形式: MP3, WAV</p>
+      </div>
+      <input type="file" id="fileInput" accept=".mp3,.wav,audio/mpeg,audio/wav" hidden>
+    </div>
+
+    <div id="fileInfo" class="file-info hidden">
+      <span id="fileName" class="file-name"></span>
+    </div>
+
+    <div id="progress" class="progress hidden">
+      <div class="progress-bar">
+        <div id="progressFill" class="progress-fill"></div>
+      </div>
+      <p id="progressText" class="progress-text">解析中...</p>
+    </div>
+
+    <div id="result" class="result hidden">
+      <p id="resultFileName" class="result-file-name"></p>
+      <div class="bpm-display">
+        <span class="bpm-label">BPM</span>
+        <span id="bpmValue" class="bpm-value">---</span>
+      </div>
+      <div class="result-actions">
+        <button id="playBtn" class="play-btn">&#9654; 再生</button>
+        <button id="removeFile" class="reset-btn" title="ファイルを削除">別のファイルを選択</button>
+      </div>
+      <canvas id="waveformCanvas" class="result-waveform"></canvas>
+    </div>
+  </div>
+
+  <script src="app.js?v=2"></script>
+</body>
+</html>
