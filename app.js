@@ -471,43 +471,57 @@
     // Sort by score
     const sorted = [...fused.entries()].sort((a, b) => b[1] - a[1]);
 
-    // Find best BPM with harmonic disambiguation
+    // Pass 1: Find best BPM using range/round/harmonic-support bonuses
     let bestBPM = sorted[0][0];
     let bestScore = -1;
 
-    // Evaluate top candidates
     const topThreshold = sorted[0][1] * 0.6;
     for (const [bpm, score] of sorted) {
       if (score < topThreshold) break;
 
       let adjusted = score;
 
-      // Preference for 80-160 range
       if (bpm >= 80 && bpm <= 160) adjusted *= 1.08;
       else if (bpm >= 70 && bpm <= 170) adjusted *= 1.02;
 
-      // Check if a harmonic partner is stronger
-      const double = bpm * 2;
-      const half = bpm / 2;
-      let dominated = false;
+      if (Math.round(bpm) % 5 === 0) adjusted *= 1.03;
 
-      if (double <= BPM_MAX) {
-        const dScore = findNearestScore(fused, double, 1);
-        if (dScore > score * 0.8 && double >= 80 && double <= 160 && !(bpm >= 80 && bpm <= 160)) {
-          dominated = true;
-        }
-      }
-      if (half >= BPM_MIN) {
-        const hScore = findNearestScore(fused, half, 1);
-        if (hScore > score * 0.8 && half >= 80 && half <= 160 && !(bpm >= 80 && bpm <= 160)) {
-          dominated = true;
+      for (const mul of [4 / 3, 3 / 2, 2]) {
+        const h = bpm * mul;
+        if (h >= BPM_MIN && h <= BPM_MAX) {
+          if (findNearestScore(fused, h, 1.5) > 0.4) adjusted *= 1.06;
         }
       }
 
-      if (!dominated && adjusted > bestScore) {
+      if (adjusted > bestScore) {
         bestScore = adjusted;
         bestBPM = bpm;
       }
+    }
+
+    // Pass 2 (single-level): check if the winner is a subdivision artifact
+    // e.g. 147 BPM might be a 4/3 artifact of 110 BPM
+    const winnerRaw = findNearestScore(fused, bestBPM, 0.5);
+    let bestFund = null;
+    let bestFundScore = -1;
+
+    for (const { ratio, tol } of [
+      { ratio: 3 / 4, tol: 2.0 },
+      { ratio: 2 / 3, tol: 2.0 },
+      { ratio: 1 / 2, tol: 1.5 },
+    ]) {
+      const fund = bestBPM * ratio;
+      if (fund < BPM_MIN || fund > BPM_MAX) continue;
+      if (fund < 70 || fund > 170) continue;
+      const fScore = findNearestScore(fused, fund, tol);
+      if (fScore > winnerRaw * 0.4 && fScore > bestFundScore) {
+        bestFund = fund;
+        bestFundScore = fScore;
+      }
+    }
+
+    if (bestFund !== null) {
+      bestBPM = bestFund;
     }
 
     // Confidence: how dominant is the best vs non-harmonic alternatives
@@ -521,7 +535,9 @@
         Math.abs(ratio - 3) < 0.12 ||
         Math.abs(ratio - 1 / 3) < 0.06 ||
         Math.abs(ratio - 1.5) < 0.1 ||
-        Math.abs(ratio - 2 / 3) < 0.1;
+        Math.abs(ratio - 2 / 3) < 0.1 ||
+        Math.abs(ratio - 4 / 3) < 0.1 ||
+        Math.abs(ratio - 3 / 4) < 0.08;
       if (isHarmonic) continue;
       secondBest = score;
       break;
