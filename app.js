@@ -481,8 +481,8 @@
 
       let adjusted = score;
 
-      if (bpm >= 80 && bpm <= 160) adjusted *= 1.08;
-      else if (bpm >= 70 && bpm <= 170) adjusted *= 1.02;
+      if (bpm >= 75 && bpm <= 175) adjusted *= 1.08;
+      else if (bpm >= 65 && bpm <= 195) adjusted *= 1.02;
 
       if (Math.round(bpm) % 5 === 0) adjusted *= 1.03;
 
@@ -499,29 +499,46 @@
       }
     }
 
-    // Pass 2 (single-level): check if the winner is a subdivision artifact
-    // e.g. 147 BPM might be a 4/3 artifact of 110 BPM
-    const winnerRaw = findNearestScore(fused, bestBPM, 0.5);
-    let bestFund = null;
-    let bestFundScore = -1;
+    // Pass 2: Correct 4/3 artifacts (e.g. 147 → 110)
+    // A real fundamental has energy at MULTIPLE harmonic multiples
+    // (4/3 AND 3/2, or 4/3 AND 2x). A coincidental 3/4 candidate
+    // only has a single relationship (4/3 = the winner itself).
+    const fund34 = bestBPM * 3 / 4;
+    let pass2Corrected = false;
 
-    for (const { ratio, tol } of [
-      { ratio: 3 / 4, tol: 2.0 },
-      { ratio: 2 / 3, tol: 2.0 },
-      { ratio: 1 / 2, tol: 1.5 },
-    ]) {
-      const fund = bestBPM * ratio;
-      if (fund < BPM_MIN || fund > BPM_MAX) continue;
-      if (fund < 70 || fund > 170) continue;
-      const fScore = findNearestScore(fused, fund, tol);
-      if (fScore > winnerRaw * 0.4 && fScore > bestFundScore) {
-        bestFund = fund;
-        bestFundScore = fScore;
+    if (fund34 >= BPM_MIN && fund34 <= BPM_MAX && fund34 >= 65) {
+      const fFused = findNearestScore(fused, fund34, 2.0);
+      if (fFused > 0.3) {
+        const h32 = fund34 * 3 / 2;
+        const h2 = fund34 * 2;
+        const h32Score = (h32 >= BPM_MIN && h32 <= BPM_MAX)
+          ? findNearestScore(fused, h32, 2.0) : 0;
+        const h2Score = (h2 >= BPM_MIN && h2 <= BPM_MAX)
+          ? findNearestScore(fused, h2, 2.0) : 0;
+        const acWinner = findNearestScore(acNorm, bestBPM, 2.0);
+        const acFund = findNearestScore(acNorm, fund34, 2.0);
+        if ((h32Score > 0.4 || h2Score > 0.4) && acFund > acWinner * 0.7) {
+          bestBPM = fund34;
+          pass2Corrected = true;
+        }
       }
     }
 
-    if (bestFund !== null) {
-      bestBPM = bestFund;
+    // Pass 3: Upward correction (e.g. 117 → 175)
+    // If winner * 4/3 or * 3/2 has stronger autocorrelation, switch up.
+    if (!pass2Corrected) {
+      const currentAC = findNearestScore(acNorm, bestBPM, 2.0);
+      for (const mul of [4 / 3, 3 / 2]) {
+        const up = bestBPM * mul;
+        if (up < BPM_MIN || up > BPM_MAX) continue;
+        const upFused = findNearestScore(fused, up, 2.0);
+        if (upFused < 0.3) continue;
+        const upAC = findNearestScore(acNorm, up, 2.0);
+        if (upAC > currentAC) {
+          bestBPM = up;
+          break;
+        }
+      }
     }
 
     // Confidence: how dominant is the best vs non-harmonic alternatives
